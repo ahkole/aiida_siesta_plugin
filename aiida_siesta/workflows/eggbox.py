@@ -36,7 +36,7 @@ class SiestaEggboxWorkChain(WorkChain):
     def define(cls, spec):
         super().define(spec)
         spec.expose_inputs(SiestaBaseWorkChain, exclude=('metadata',))
-        spec.expose_inputs(SiestaIterator, include=('batch_size',))
+        spec.expose_inputs(SiestaIterator, include=('batch_size',), namespace='eggbox')
         spec.input('shift_mask', required=False, default=lambda: orm.List(list=[1.,1.,1.])
                    , valid_type=(orm.List), validator=is_correct_mask)
         spec.input('shift_steps', required=False, default=lambda: orm.Int(10)
@@ -83,7 +83,7 @@ class SiestaEggboxWorkChain(WorkChain):
         self.report("Iterating over shifts of the origin")
         future = self.submit(SiestaIterator,
                              **self.ctx.inputs,
-                             **self.exposed_inputs(SiestaIterator),
+                             **self.exposed_inputs(SiestaIterator, 'eggbox'),
                              iterate_over=self.ctx.iterate_over,
                              )
         return ToContext(iterate_run=future)
