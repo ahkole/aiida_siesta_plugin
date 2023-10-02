@@ -223,6 +223,19 @@ def validate_inputs(value, _):
             return string_out
 
 
+def is_bdg_fixeddelta_or_fixedlambda(parameters):
+    """
+    Check if calculation is a BdG calculation in fixeddelta or fixedlambda mode.
+    """
+    pdict = FDFDict(parameters.get_dict())
+    if (
+        'spin' in pdict and pdict['spin'].lower() == 'nambu' and 'bdgmethod' in pdict and
+        pdict['bdgmethod'].lower() != 'oneshot'
+    ):
+        return True
+    return False
+
+
 class SiestaCalculation(CalcJob):
     """
     Siesta calculator class for AiiDA.
@@ -241,6 +254,7 @@ class SiestaCalculation(CalcJob):
 
     # Class attribute: elements to copy from the parent in restarts (fow now, just the density matrix file)
     _restart_copy_from = os.path.join('./', '*.DM')
+    _restart_copy_from_bdg = [os.path.join('./', '*.ADM'), os.path.join('./', '*.EIG')]
 
     # Class attribute: in restarts, it will copy the previous elements in the following folder
     _restart_copy_to = './'
@@ -620,6 +634,32 @@ class SiestaCalculation(CalcJob):
                 parent_calc_folder.computer.uuid,
                 os.path.join(parent_calc_folder.get_remote_path(), self._restart_copy_from), self._restart_copy_to
             ))
+            # Check if we also need to copy BdG restart files
+            if is_bdg_fixeddelta_or_fixedlambda(parameters):
+                # We are launching BdG calculation
+                parent_is_bdg = False
+                if (
+                    parent_calc_folder.creator.process_label == 'SiestaCalculation' and
+                    is_bdg_fixeddelta_or_fixedlambda(parent_calc_folder.creator.inputs.parameters)
+                ):
+                    parent_is_bdg = True
+                else:
+                    # We have to check contents of remote folder
+                    has_adm = False
+                    has_eig = False
+                    for fname in parent_calc_folder.listdir():
+                        if fname.endswith('.ADM'):
+                            has_adm = True
+                        if fname.endswith('.EIG'):
+                            has_eig = True
+                    if has_adm and has_eig:
+                        parent_is_bdg = True
+                if parent_is_bdg:
+                    for path in self._restart_copy_from_bdg:
+                        remote_copy_list.append((
+                            parent_calc_folder.computer.uuid, os.path.join(parent_calc_folder.get_remote_path(),
+                                                                           path), self._restart_copy_to
+                        ))
             input_params.update({'dm-use-save-dm': "T"})
 
         # ===================================== FDF file creation ====================================
@@ -731,7 +771,7 @@ class SiestaCalculation(CalcJob):
         return calcinfo
 
     @classmethod
-    def inputs_generator(cls):  # pylint: disable=no-self-argument,no-self-use
+    def inputs_generator(cls):  # pylint: disable=no-self-argument
         """
         Shortcut to call the input generator.
         """
