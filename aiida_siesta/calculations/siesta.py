@@ -316,6 +316,7 @@ class SiestaCalculation(CalcJob):
             required=False,
         )
         spec.input_namespace('ions', valid_type=IonData, help='Input ion file', dynamic=True, required=False)
+        spec.input('ions_folder', valid_type=orm.RemoteData, required=False, help='Folder to copy ion files from')
 
         # Input namespace for Lua-related material.
         # Parameters are in a separate dictionary to enable a reduced set of 'universal' scripts for particular uses.
@@ -439,6 +440,11 @@ class SiestaCalculation(CalcJob):
         else:
             parent_calc_folder = None
 
+        if 'ions_folder' in self.inputs:
+            ions_folder = self.inputs.ions_folder
+        else:
+            ions_folder = None
+
         lua_inputs = self.inputs.lua
 
         if 'script' in lua_inputs:
@@ -511,6 +517,7 @@ class SiestaCalculation(CalcJob):
 
         # ----------------------------ATOMIC_SPECIES & PSEUDOS/IONS-------------------------------
         atomic_species_card_list = []
+        ion_file_list = []
         # Dictionary to get the atomic number of a given element
         datmn = {v['symbol']: k for k, v in elements.items()}
         spind = {}
@@ -533,8 +540,11 @@ class SiestaCalculation(CalcJob):
             # Since no subfolder is present in Siesta for pseudos, filename == relativedestpath.
             if isinstance(psp_or_ion, IonData):
                 file_name = kind.name + ".ion"
-                with folder.open(file_name, 'w', encoding='utf8') as handle:
-                    handle.write(psp_or_ion.get_content_ascii_format())
+                if ions_folder is not None:
+                    ion_file_list.append(os.path.join('./', file_name))
+                else:
+                    with folder.open(file_name, 'w', encoding='utf8') as handle:
+                        handle.write(psp_or_ion.get_content_ascii_format())
             if isinstance(psp_or_ion, PsfData):
                 local_copy_list.append((psp_or_ion.uuid, psp_or_ion.filename, kind.name + ".psf"))
             if isinstance(psp_or_ion, PsmlData):
@@ -629,6 +639,11 @@ class SiestaCalculation(CalcJob):
         # to the current calculation's working folder.
         # ISSUE: Is this mechanism flexible enough? An alternative would be to
         # pass the information about which file(s) to copy in the metadata.options dictionary
+        if ions_folder is not None:
+            for path in ion_file_list:
+                remote_copy_list.append((
+                    ions_folder.computer.uuid, os.path.join(ions_folder.get_remote_path(), path), self._restart_copy_to
+                ))
         if parent_calc_folder is not None:
             remote_copy_list.append((
                 parent_calc_folder.computer.uuid,
