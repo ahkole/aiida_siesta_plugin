@@ -676,6 +676,9 @@ class SiestaCalculation(CalcJob):
                                                                            path), self._restart_copy_to
                         ))
             input_params.update({'dm-use-save-dm': "T"})
+        else:
+            # Explicitly set dm-use-save-dm to false due to new siesta defaults
+            input_params.update({'dm-use-save-dm': "F"})
 
         # ===================================== FDF file creation ====================================
 
