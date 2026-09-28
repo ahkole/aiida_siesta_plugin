@@ -345,6 +345,8 @@ class SiestaCalculation(CalcJob):
         spec.exit_code(350, 'UNEXPECTED_TERMINATION', message='Statement "Job completed" not detected, unknown error')
         spec.exit_code(449, 'SPLIT_NORM', message='Split_norm parameter too small')
         spec.exit_code(448, 'BASIS_POLARIZ', message='Problems in the polarization of a basis element')
+        spec.exit_code(455, 'XML_PARSE_FAIL', message='Failure while parsing the output xml file')
+        spec.exit_code(456, 'OUT_PARSE_FAIL', message='Failure while parsing the standard output file')
 
     def initialize(self):
         """
