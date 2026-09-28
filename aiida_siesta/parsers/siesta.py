@@ -154,11 +154,12 @@ def get_parsed_xml_doc(output_folder, xml_name):
     """
 
     from xml.dom import minidom
+    from xml.parsers.expat import ExpatError
 
     with output_folder.base.repository.open(xml_name, mode='rb') as handle:
         try:
             xmldoc = minidom.parse(handle)
-        except EOFError:
+        except (EOFError, ExpatError):
             raise OutputParsingError("Faulty Xml File")
 
     return xmldoc
@@ -411,7 +412,7 @@ class SiestaParser(Parser):
 
     _version = '2.0.1.dev0'
 
-    def parse(self, **kwargs):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+    def parse(self, **kwargs):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements,too-many-return-statements
         """
         Receives in input a dictionary of retrieved nodes. Does all the logic here.
         """
@@ -427,13 +428,16 @@ class SiestaParser(Parser):
 
         xml_name = str(self.node.get_option('prefix')) + ".xml"
         if xml_name not in output_folder.list_object_names():
-            raise OutputParsingError("Xml file not retrieved")
-        xmldoc = get_parsed_xml_doc(output_folder, xml_name)
+            return self.exit_codes.XML_PARSE_FAIL
+        try:
+            xmldoc = get_parsed_xml_doc(output_folder, xml_name)
+        except OutputParsingError:
+            return self.exit_codes.XML_PARSE_FAIL
         result_dict = get_dict_from_xml_doc(xmldoc)
 
         out_name = self.node.get_option('output_filename')
         if out_name not in output_folder.list_object_names():
-            raise OutputParsingError("output file not retrieved")
+            return self.exit_codes.OUT_PARSE_FAIL
 
         output_dict = dict(list(result_dict.items()) + list(parser_info.items()))
 
