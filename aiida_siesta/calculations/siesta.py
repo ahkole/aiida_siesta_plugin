@@ -788,6 +788,11 @@ class SiestaCalculation(CalcJob):
         settings_retrieve_list = settings_dict.pop('ADDITIONAL_RETRIEVE_LIST', [])
         calcinfo.retrieve_list += settings_retrieve_list
 
+        # Backup files in case parsing of XML file fails
+        calcinfo.retrieve_temporary_list = []
+        xv_file = str(metadataoption.prefix) + ".XV"
+        calcinfo.retrieve_temporary_list.append(xv_file)
+
         return calcinfo
 
     @classmethod
